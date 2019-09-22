@@ -4,8 +4,8 @@ To Do:
 1. The Warpgate Transforming - Finished
 2. The Forge Building - Finished
 3. Upgrade of units - Finished
-4. Stargate building
-5. Ability using
-6. Scout
-7. Different stratagy for different situations
-8. Better rally point
+4. Stargate building - Gived up
+5. Ability using - Finished
+6. Scout - Trying
+7. Different stratagy for different situations - Gived up
+8. Better rally point - Finished
