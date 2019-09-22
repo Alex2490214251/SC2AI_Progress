@@ -14,21 +14,16 @@ class Bot_Stardust(Bot_api):
         await self.build_nexus()
         await self.build_gateway_cyberneticscore()
         await self.build_twilightconcil()
-        #await self.build_stargate_fleetbeacon()
         await self.build_roboticsfacility_roboticsbay()
         await self.build_forge()
         await self.train_stalker()
         await self.train_zealot()
         await self.train_sentry()
-        #await self.train_phoenix()
-        #await self.train_carrier()
         await self.train_immortal()
         await self.train_colossus()
         await self.operation_stalker()
         await self.operation_zealot()
         await self.operation_sentry()
-        #await self.operation_phoenix()
-        #await self.operation_carrier()
         await self.operation_immortal()
         await self.operation_colossus()
         await self.operation_cyberneticscore()
@@ -40,12 +35,13 @@ class Bot_Stardust(Bot_api):
     #Probe
     async def train_probe(self):
         for Nexus in self.units(sc2.UnitTypeId.NEXUS).ready.noqueue:
-            if self.can_afford(sc2.UnitTypeId.PROBE) and self.units(sc2.UnitTypeId.PROBE).amount < 66:
+            if self.can_afford(sc2.UnitTypeId.PROBE) and self.units(sc2.UnitTypeId.PROBE).amount < 60:
                 await self.do(Nexus.train(sc2.UnitTypeId.PROBE))
 
     #Basic Buildings
     async def build_pylon(self):
-        if self.supply_left <= ((self.units(sc2.UnitTypeId.GATEWAY).amount+self.units(sc2.UnitTypeId.WARPGATE).amount)*2)+1 and not self.already_pending(sc2.UnitTypeId.PYLON) and \
+        if self.supply_left + 8 * self.already_pending(UnitTypeId.PYLON) < \
+                ((self.units(sc2.UnitTypeId.GATEWAY).amount+self.units(sc2.UnitTypeId.WARPGATE).amount)*2+(self.units(sc2.UnitTypeId.ROBOTICSFACILITY).amount)*4) and \
                 self.supply_cap < 200:
             Nexus = self.units(sc2.UnitTypeId.NEXUS).ready
             if Nexus.exists:
@@ -63,7 +59,7 @@ class Bot_Stardust(Bot_api):
                 if worker == None:
                     break
                 if not self.units(sc2.UnitTypeId.ASSIMILATOR).closer_than(1.0, vaspene) and \
-                        self.units(sc2.UnitTypeId.ASSIMILATOR).amount < (((self.time/300)+1)*self.units(sc2.UnitTypeId.NEXUS).ready.amount)//1:
+                        self.units(sc2.UnitTypeId.ASSIMILATOR).amount < self.units(UnitTypeId.NEXUS).ready.amount + self.time//360 + 1:
                     await self.do(worker.build(sc2.UnitTypeId.ASSIMILATOR, vaspene))
     async def build_nexus(self):
         if self.can_afford(sc2.UnitTypeId.NEXUS) and \
@@ -81,7 +77,7 @@ class Bot_Stardust(Bot_api):
                     if self.can_afford(sc2.UnitTypeId.CYBERNETICSCORE) and not self.already_pending(sc2.UnitTypeId.CYBERNETICSCORE):
                         await self.build(sc2.UnitTypeId.CYBERNETICSCORE, near=pylon) #Build Cyberneticscore
             if (not self.units(sc2.UnitTypeId.CYBERNETICSCORE) or
-                    ((self.units(sc2.UnitTypeId.GATEWAY).amount + self.units(sc2.UnitTypeId.WARPGATE).amount < int(self.units(sc2.UnitTypeId.NEXUS).ready.amount*((self.time / 360)+1)) and
+                    ((self.units(sc2.UnitTypeId.GATEWAY).amount + self.units(sc2.UnitTypeId.WARPGATE).amount < int(self.units(sc2.UnitTypeId.NEXUS).ready.amount*((self.time / 360)+0.75)) and
                       self.units(sc2.UnitTypeId.CYBERNETICSCORE).ready.exists and
                      self.units(sc2.UnitTypeId.GATEWAY).amount < self.units(sc2.UnitTypeId.NEXUS).ready.amount * 2))): #Less than 3 GateWay per Nexus
                 if self.can_afford(sc2.UnitTypeId.GATEWAY) and (not self.already_pending(sc2.UnitTypeId.GATEWAY)):
@@ -93,17 +89,6 @@ class Bot_Stardust(Bot_api):
                 if not self.units(UnitTypeId.TWILIGHTCOUNCIL):
                     if self.can_afford(UnitTypeId.TWILIGHTCOUNCIL) and not self.already_pending(UnitTypeId.TWILIGHTCOUNCIL):
                         await self.build(UnitTypeId.TWILIGHTCOUNCIL, near=pylon)
-    async def build_stargate_fleetbeacon(self):
-        if self.units(sc2.UnitTypeId.CYBERNETICSCORE).ready.exists:
-            pylon = self.units(sc2.UnitTypeId.PYLON).ready.random
-            if self.units(sc2.UnitTypeId.STARGATE).ready.amount >= 1:
-                if not self.units(sc2.UnitTypeId.FLEETBEACON):
-                    if self.can_afford(sc2.UnitTypeId.FLEETBEACON) and not self.already_pending(sc2.UnitTypeId.FLEETBEACON):
-                        await self.build(sc2.UnitTypeId.FLEETBEACON, near=pylon) #Build Fleetbeacon
-            if (not self.units(sc2.UnitTypeId.FLEETBEACON) and self.units(sc2.UnitTypeId.STARGATE).amount < 1) or \
-                    ((self.units(sc2.UnitTypeId.STARGATE).amount < (self.units(sc2.UnitTypeId.NEXUS).ready.amount)-1) and self.units(sc2.UnitTypeId.FLEETBEACON).ready.exists):
-                if self.can_afford(sc2.UnitTypeId.STARGATE) and not self.already_pending(sc2.UnitTypeId.STARGATE):#Build Stargate
-                    await self.build(sc2.UnitTypeId.STARGATE, near=pylon)
     async def build_roboticsfacility_roboticsbay(self):
         if self.units(sc2.UnitTypeId.CYBERNETICSCORE).ready.exists and self.units(sc2.UnitTypeId.PYLON).ready.exists:
             pylon = self.units(sc2.UnitTypeId.PYLON).ready.random
@@ -111,7 +96,7 @@ class Bot_Stardust(Bot_api):
                 if not self.units(sc2.UnitTypeId.ROBOTICSBAY):
                     if self.can_afford(sc2.UnitTypeId.ROBOTICSBAY) and not self.already_pending(sc2.UnitTypeId.ROBOTICSBAY):
                         await self.build(sc2.UnitTypeId.ROBOTICSBAY, near=pylon) #Build Roboticsbay
-            if self.units(sc2.UnitTypeId.ROBOTICSFACILITY).amount < self.units(sc2.UnitTypeId.NEXUS).ready.amount-1:
+            if self.units(sc2.UnitTypeId.ROBOTICSFACILITY).amount < self.units(sc2.UnitTypeId.NEXUS).ready.amount:
                 if self.can_afford(sc2.UnitTypeId.ROBOTICSFACILITY) and not self.already_pending(sc2.UnitTypeId.ROBOTICSFACILITY): #Build Roboticsfacility
                     await self.build(sc2.UnitTypeId.ROBOTICSFACILITY, near=pylon)
     async def build_forge(self):
@@ -143,7 +128,7 @@ class Bot_Stardust(Bot_api):
         for gateway in self.units(sc2.UnitTypeId.GATEWAY).ready.noqueue:
             if self.supply_left > 1 and \
                     self.units(sc2.UnitTypeId.CYBERNETICSCORE).ready.exists and \
-                    self.units(UnitTypeId.STALKER).ready.amount < 40 - (self.time//45) and \
+                    self.units(UnitTypeId.STALKER).ready.amount < 40 - (self.time//42) and \
                     warp == False:
                 await self.train(UnitTypeId.STALKER, gateway)
         if self.units(sc2.UnitTypeId.PYLON).ready.exists:
@@ -151,7 +136,7 @@ class Bot_Stardust(Bot_api):
                 for warpgate in self.units(sc2.UnitTypeId.WARPGATE).ready.idle:
                     if self.supply_left > 1 and self.can_afford(UnitTypeId.STALKER) and \
                             self.units(sc2.UnitTypeId.CYBERNETICSCORE).ready.exists and \
-                            self.units(UnitTypeId.STALKER).ready.amount < 40 - (self.time // 45) and \
+                            self.units(UnitTypeId.STALKER).ready.amount < 40 - (self.time // 42) and \
                             await self.has_ability(AbilityId.WARPGATETRAIN_STALKER, warpgate):
                         await self.warp_in(UnitTypeId.STALKER, warpgate, pylon.position)
     async def train_sentry(self):
@@ -169,27 +154,26 @@ class Bot_Stardust(Bot_api):
                             self.units(UnitTypeId.SENTRY).ready.amount <= int((await self.troop_size()) * 0.02) and \
                             await self.has_ability(AbilityId.WARPGATETRAIN_SENTRY, warpgate):
                         await self.warp_in(UnitTypeId.SENTRY, warpgate, pylon.position)
-    async def train_phoenix(self):
-        for stargate in self.units(sc2.UnitTypeId.STARGATE).ready.noqueue:
-            if self.supply_left > 1 and \
-                    (not self.units(sc2.UnitTypeId.FLEETBEACON).ready.exists or
-                     self.units(sc2.UnitTypeId.PHOENIX).ready.amount <= 4-(self.time//60-6)):
-                await self.train(UnitTypeId.PHOENIX, stargate)
-    async def train_carrier(self):
-        for stargate in self.units(sc2.UnitTypeId.STARGATE).ready.noqueue:
-            if self.supply_left > 5 and \
-                    self.units(sc2.UnitTypeId.FLEETBEACON).ready.exists:
-                await self.train(UnitTypeId, stargate)
+
     async def train_immortal(self):
         for roboticsfacility in self.units(sc2.UnitTypeId.ROBOTICSFACILITY).ready.noqueue:
-            if self.supply_left > 3 and \
-                    self.units(sc2.UnitTypeId.IMMORTAL).ready.amount < 4:
+            if self.supply_left > 3 and self.units(UnitTypeId.IMMORTAL).ready.amount < 5*(self.units(UnitTypeId.COLOSSUS).amount+1):
                 await self.train(UnitTypeId.IMMORTAL, roboticsfacility)
     async def train_colossus(self):
         for roboticsfacility in self.units(sc2.UnitTypeId.ROBOTICSFACILITY).ready.noqueue:
             if self.supply_left > 5 and \
                     self.units(sc2.UnitTypeId.ROBOTICSBAY).ready.exists:
                 await self.train(UnitTypeId.COLOSSUS, roboticsfacility)
+    async def train_observer(self):
+        for roboticfacility in self.units(sc2.UnitTypeId.ROBOTICSFACILITY).ready.noqueue:
+            if self.supply_left > 0 and \
+                    self.units(UnitTypeId.OBSERVER).ready.amount < 3:
+                await self.train(UnitTypeId.OBSERVER, roboticfacility)
+    async def train_warpprism(self):
+        for roboticsfacility in self.units(sc2.UnitTypeId.ROBOTICSFACILITY).ready.noqueue:
+            if self.supply_left > 1 and \
+                    not self.units(sc2.UnitTypeId.WARPPRISM):
+                await self.train(UnitTypeId.WARPPRISM, roboticsfacility)
 
     #Troops Micro AI
     async def operation_zealot(self):
@@ -197,18 +181,18 @@ class Bot_Stardust(Bot_api):
         for zealot in self.units(sc2.UnitTypeId.ZEALOT):
             if self.units(sc2.UnitTypeId.ZEALOT).amount > 0 and len(known_enemy_troops) > 0 and attack_history == False:
                 await self.do(zealot.attack(known_enemy_troops[-1]))
-            elif attack == True and flee == False:
+            elif attack == True:
                 await self.macro_attack(zealot)
-            elif attack == False or flee == True:
+            elif attack == False:
                 await self.do(zealot.move(self.units(sc2.UnitTypeId.PYLON).ready.closest_to(self.game_info.map_center).position.towards(self.game_info.map_center, 10)))
     async def operation_stalker(self):
         known_enemy_troops = self.known_enemy_units - self.known_enemy_structures
         for stalker in self.units(sc2.UnitTypeId.STALKER):
             if self.units(sc2.UnitTypeId.STALKER).amount > 0 and len(known_enemy_troops) > 0 and attack_history == False:
                 await self.do(stalker.attack(known_enemy_troops[-1]))
-            elif attack == True and flee == False:
+            elif attack == True :
                 await self.macro_attack(stalker)
-            elif attack == False or flee == True:
+            elif attack == False :
                 await self.do(stalker.move(self.units(sc2.UnitTypeId.PYLON).ready.closest_to(self.game_info.map_center).position.towards(self.game_info.map_center, 10)))
             if await self.has_ability(AbilityId.EFFECT_BLINK_STALKER, stalker):
                 if stalker.shield_percentage <= 0.4:
@@ -218,51 +202,46 @@ class Bot_Stardust(Bot_api):
         for sentry in self.units(sc2.UnitTypeId.SENTRY):
             if self.units(sc2.UnitTypeId.SENTRY).amount > 0 and len(known_enemy_troops) > 0 and attack_history == False:
                 await self.do(sentry.attack(known_enemy_troops[-1]))
-            elif attack == True and flee == False:
+            elif attack == True:
                 await self.macro_attack(sentry)
-            elif attack == False or flee == True:
+            elif attack == False:
                 await self.do(sentry.move(self.units(sc2.UnitTypeId.PYLON).ready.closest_to(self.game_info.map_center).position.towards(self.game_info.map_center, 10)))
             if await self.has_ability(AbilityId.FORCEFIELD_FORCEFIELD, sentry):
-                if len(known_enemy_troops) > 0 and not self.has_ability(AbilityId.FORCEFIELD_CANCEL, sentry):
+                if len(known_enemy_troops) > 0 and not await self.has_ability(AbilityId.FORCEFIELD_CANCEL, sentry):
                     await self.do(sentry(AbilityId.FORCEFIELD_FORCEFIELD, known_enemy_troops[await self.random(0,len(known_enemy_troops))].position.towards(self.start_location, 0.5)))
-    async def operation_phoenix(self):
-        known_enemy_troops = self.known_enemy_units - self.known_enemy_structures
-        for phoenix in self.units(sc2.UnitTypeId.PHOENIX):
-            if self.units(sc2.UnitTypeId.PHOENIX).amount > 0 and len(known_enemy_troops) > 0 and attack_history == False:
-                await self.do(phoenix.attack(known_enemy_troops[-1]))
-            elif attack == True and flee == False:
-                await self.macro_attack(phoenix)
-            elif attack == False or flee == True:
-                await self.do(phoenix.move(self.units(sc2.UnitTypeId.PYLON).ready.closest_to(self.game_info.map_center).position.towards(self.game_info.map_center, 10)))
-    async def operation_carrier(self):
-        known_enemy_troops = self.known_enemy_units - self.known_enemy_structures
-        for carrier in self.units(sc2.UnitTypeId.CARRIER):
-            if self.units(sc2.UnitTypeId.CARRIER).amount > 0 and len(known_enemy_troops) > 0 and attack_history == False:
-                await self.do(carrier.attack(known_enemy_troops[-1]))
-            elif attack == True and flee == False and not carrier.shield_percentage <= 0.3:
-                await self.macro_attack(carrier)
-            elif attack == False or flee == True or carrier.shield_percentage < 0.3:
-                await self.do(carrier.move(self.units(sc2.UnitTypeId.PYLON).ready.closest_to(self.game_info.map_center).position.towards(self.game_info.map_center, 10)))
+
     async def operation_immortal(self):
         known_enemy_troops = self.known_enemy_units - self.known_enemy_structures
         for immortal in self.units(sc2.UnitTypeId.IMMORTAL):
             if self.units(sc2.UnitTypeId.IMMORTAL).amount > 0 and len(known_enemy_troops) > 0 and attack_history == False:
                 await self.do(immortal.attack(known_enemy_troops[-1]))
-            elif attack == True and flee == False:
+            elif attack == True:
                 await self.macro_attack(immortal)
-            elif attack == False or flee == True:
+            elif attack == False:
                 await self.do(immortal.move(self.units(sc2.UnitTypeId.PYLON).ready.closest_to(self.game_info.map_center).position.towards(self.game_info.map_center, 10)))
     async def operation_colossus(self):
         known_enemy_troops = self.known_enemy_units - self.known_enemy_structures
         for colossus in self.units(sc2.UnitTypeId.COLOSSUS):
             if self.units(sc2.UnitTypeId.COLOSSUS).amount > 0 and len(known_enemy_troops) > 0 and attack_history == False:
                 await self.do(colossus.attack(known_enemy_troops[-1]))
-            elif attack == True and flee == False and colossus.shield_percentage >= 0.3:
+            elif attack == True and colossus.shield_percentage >= 0.3:
                 await self.macro_attack(colossus)
-                print('Colossus_Attack')
-            elif attack == False or flee == True or colossus.shield_percentage < 0.3:
+            elif attack == False or colossus.shield_percentage < 0.3:
                 await self.do(colossus.move(self.units(sc2.UnitTypeId.PYLON).ready.closest_to(self.game_info.map_center).position.towards(self.game_info.map_center, 10)))
-                print('Colossus_Flee')
+
+    async def operation_warpprism(self):
+        Troop = self.units(UnitTypeId.STALKER)+self.units(UnitTypeId.SENTRY)+self.units(UnitTypeId.IMMORTAL)+self.units(UnitTypeId.COLOSSUS)
+        for prism in self.units(UnitTypeId.WARPPRISM):
+            for troop in Troop:
+                if troop.shield_percentage <= 0.025 and troop.health_percentage <= 0.8:
+                    await self.do(prism(AbilityId.LOAD_WARPPRISM, troop))
+            if prism.has_cargo:
+                await self.do(prism(AbilityId.UNLOADALLAT_WARPPRISM, self.units(UnitTypeId.STALKER).closest_to(self.game_info.map_center).position.towards(self.game_info.map_center, -2)))
+            else:
+                await self.do(prism.move(self.units(UnitTypeId.STALKER).closest_to(self.game_info.map_center).position.towards(self.game_info.map_center, -2)))
+    async def operation_observer(self):
+        for observer in self.units(UnitTypeId.OBSERVER):
+            await self.do(observer.move(self.units(UnitTypeId.STALKER).closest_to(self.enemy_start_locations[0]).position.towards(self.start_location,6)))
 
     #Buildings Micro AI
     async def operation_cyberneticscore(self):
@@ -306,27 +285,19 @@ class Bot_Stardust(Bot_api):
     async def CONTROLL_ATTACK(self):
         global attack
         global attack_history
-        global flee
         attack = False
-        rally = False
-        flee = False
         if self.time < 1:
             attack_history = False
-        if await self.troop_size() >= 68:
-            attack = True
-            attack_history = True
-            #await self.chat_send('Attack')
-        else:
-            attack = False
-            #await self.chat_send('Stop Attacking')
-        if await self.troop_size() < 68 and \
-                attack_history == True:
-            flee = True
-        else:
-            flee = False
+        if self.units(UnitTypeId.STALKER).ready.exists:
+            if await self.has_ability(AbilityId.EFFECT_BLINK_STALKER, self.units(UnitTypeId.STALKER).first):
+                attack_history = True
+        if attack_history == True:
+            if await self.troop_size() >= 74:
+                attack = True
 
-sc2.run_game(sc2.maps.get("BlackpinkLE"), [
+
+sc2.run_game(sc2.maps.get("ProximaStationLE"), [
     #Player,
     Bot(Race.Protoss, Bot_Stardust()),
     Computer(Race.Protoss, difficulty=Difficulty.VeryHard)
-], realtime=False, save_replay_as="AI8.SC2Replay")
+], realtime=False, save_replay_as="AI13.SC2Replay")

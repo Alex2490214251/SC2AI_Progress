@@ -7,15 +7,22 @@ from sc2.constants import UnitTypeId, AbilityId, UpgradeId
 class Bot_api(sc2.BotAI):
 
     async def macro_attack(self, attack_unit):
-        known_enemy_troops = self.known_enemy_units - self.known_enemy_structures
+        known_enemy_troops = self.known_enemy_units+self.units(UnitTypeId.PHOTONCANNON)
         enemy_in_range = await self.enemy_in_range(known_enemy_troops, attack_unit)
-        if len(known_enemy_troops) > 0:
-            if len(enemy_in_range) == 0:
-                await self.do(attack_unit.move(known_enemy_troops[0]))
+
+        if len(enemy_in_range) > 0:
+            if attack_unit.weapon_cooldown != 0:
+                if len(known_enemy_troops) >= 1.5*self.units(UnitTypeId.STALKER).ready.amount and \
+                        attack_unit != UnitTypeId.COLOSSUS:
+                    await self.do(attack_unit.move(self.known_enemy_units.closest_to(attack_unit.position).position.towards(
+                        attack_unit.position,attack_unit.ground_range
+                    )))
+                else:
+                    await self.do(attack_unit.move(self.known_enemy_units.closest_to(attack_unit.position).position))
             else:
-                await self.do(attack_unit.attack(enemy_in_range[0]))
+                await self.do(attack_unit.attack(self.known_enemy_units.closest_to(attack_unit.position)))
         elif len(self.known_enemy_structures) > 0:
-            await self.do(attack_unit.attack(self.known_enemy_structures[0]))
+            await self.do(attack_unit.attack(self.known_enemy_structures[-1]))
         else:
             await self.do(attack_unit.attack(self.enemy_start_locations[0]))
 
