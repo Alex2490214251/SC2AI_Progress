@@ -1,4 +1,4 @@
-# SC2AI_Progress
+# SC2AI
 I am a starter of SC2 AI Scripting, this is a first modification of the tutorial on youtube. Currently the best performance is win against the Hard AI of SC2 official AI. 
 To Do:
 1. The Warpgate Transforming - Finished
