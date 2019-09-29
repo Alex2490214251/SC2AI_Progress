@@ -7,24 +7,43 @@ from sc2.constants import UnitTypeId, AbilityId, UpgradeId
 class Bot_api(sc2.BotAI):
 
     async def macro_attack(self, attack_unit):
-        known_enemy_troops = self.known_enemy_units+self.units(UnitTypeId.PHOTONCANNON)
-        enemy_in_range = await self.enemy_in_range(known_enemy_troops, attack_unit)
+        known_enemy_troops = self.enemy_units-self.enemy_structures
+        enemy_in_range = await self.enemy_in_range(known_enemy_troops,attack_unit)
 
         if len(enemy_in_range) > 0:
             if attack_unit.weapon_cooldown != 0:
-                if len(known_enemy_troops) >= 1.5*self.units(UnitTypeId.STALKER).ready.amount and \
-                        attack_unit != UnitTypeId.COLOSSUS:
-                    await self.do(attack_unit.move(self.known_enemy_units.closest_to(attack_unit.position).position.towards(
-                        attack_unit.position,attack_unit.ground_range
-                    )))
-                else:
-                    await self.do(attack_unit.move(self.known_enemy_units.closest_to(attack_unit.position).position))
+                self.do(attack_unit.move(self.enemy_units.closest_to(attack_unit.position).position.towards(
+                    attack_unit.position,attack_unit.ground_range+2
+                )))
             else:
-                await self.do(attack_unit.attack(self.known_enemy_units.closest_to(attack_unit.position)))
-        elif len(self.known_enemy_structures) > 0:
-            await self.do(attack_unit.attack(self.known_enemy_structures[-1]))
+                self.do(attack_unit.attack(self.enemy_units.closest_to(attack_unit.position)))
+        elif len(self.enemy_structures) > 0:
+            self.do(attack_unit.attack(self.enemy_structures.closest_to(attack_unit.position)))
         else:
-            await self.do(attack_unit.attack(self.enemy_start_locations[0]))
+            self.do(attack_unit.attack(self.enemy_start_locations[0]))
+
+    async def macro_defend(self, attack_unit):
+        half_map = self.start_location.position.distance_to(self.enemy_start_locations[0].position)
+        enemy_attack = self.enemy_units.filter(lambda unit:unit.distance_to(self.start_location) < 0.4*half_map)
+
+        rally_position = self.structures(sc2.UnitTypeId.PYLON).ready.closest_to(self.game_info.map_center).position.towards(
+            self.game_info.map_center, 10)
+        if len(enemy_attack) > 0:
+            if attack_unit.weapon_cooldown != 0:
+                self.do(attack_unit.move(self.enemy_units.closest_to(attack_unit.position).position.towards(
+                    attack_unit.position,attack_unit.ground_range+1
+                )))
+            else:
+                self.do(attack_unit.attack(self.enemy_units.closest_to(attack_unit.position)))
+        else:
+            if attack_unit.distance_to(rally_position) > 6:
+                self.do(attack_unit.move(rally_position))
+
+    async def attack_control(self, attack_unit, attack_bool):
+        if attack_bool == True:
+            await self.macro_attack(attack_unit)
+        if attack_bool == False:
+            await self.macro_defend(attack_unit)
 
     async def has_ability(self, ability, unit):
         unit_ability = await self.get_available_abilities(unit)
@@ -35,7 +54,7 @@ class Bot_api(sc2.BotAI):
 
     async def train(self, unit, building):
         if self.can_afford(unit):
-            await self.do(building.train(unit))
+            self.do(building.train(unit))
 
     async def warp_in(self, unit, building, position_point):
         import random
@@ -43,7 +62,7 @@ class Bot_api(sc2.BotAI):
         y = random.randrange(-8,8)
         placement = sc2.position.Point2((position_point.x+x,position_point.y+y))
         if self.can_afford(unit):
-            await self.do(building.warp_in(unit, placement))
+            self.do(building.warp_in(unit, placement))
 
     async def troop_size(self):
         supply_troop = self.supply_used - self.units(sc2.UnitTypeId.PROBE).ready.amount
@@ -52,9 +71,25 @@ class Bot_api(sc2.BotAI):
     async def enemy_in_range(self, known_enemy_list, unit):
         enemy_in_range_list = []
         for enemy in known_enemy_list:
-            if unit.target_in_range(enemy):
+            if unit.distance_to(enemy) <= max(unit.ground_range,unit.air_range)+2:
                 enemy_in_range_list.append(enemy)
         return enemy_in_range_list
+
+    def has_order(self, orders, unit):
+        if type(orders) != list:
+            orders = [orders]
+        count = 0
+        if len(unit.orders) >= 1 and unit.orders[0].ability.id in orders:
+            count += 1
+        return count
+
+    async def order(self, units, order, target=None, silent=True):
+        if type(units) != list:
+            unit = units
+            self.do(unit(order, target=target))
+        else:
+            for unit in units:
+                self.do(unit(order, target=target))
 
     async def random(self, min, max):
         import random
