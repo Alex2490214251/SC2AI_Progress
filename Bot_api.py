@@ -1,17 +1,20 @@
 import sc2
 from sc2 import run_game, Race, maps, Difficulty
 from sc2.player import Bot, Computer
-from sc2 import position
+from sc2 import position, Race
 from sc2.constants import UnitTypeId, AbilityId, UpgradeId
+
+# TO DO
+# Defending attack the structures
+# Attack enemy troops when exists
 
 class Bot_api(sc2.BotAI):
 
     async def macro_attack(self, attack_unit):
-        known_enemy_troops = self.enemy_units-self.enemy_structures
+        known_enemy_troops = self.enemy_units
         enemy_in_range = await self.enemy_in_range(known_enemy_troops,attack_unit)
-
-        if len(enemy_in_range) > 0:
-            if attack_unit.weapon_cooldown != 0:
+        if len(known_enemy_troops) > 0:
+            if attack_unit.weapon_cooldown != 0 or len(enemy_in_range) == 0:
                 self.do(attack_unit.move(self.enemy_units.closest_to(attack_unit.position).position.towards(
                     attack_unit.position,attack_unit.ground_range+2
                 )))
@@ -24,25 +27,33 @@ class Bot_api(sc2.BotAI):
 
     async def macro_defend(self, attack_unit):
         half_map = self.start_location.position.distance_to(self.enemy_start_locations[0].position)
-        enemy_attack = self.enemy_units.filter(lambda unit:unit.distance_to(self.start_location) < 0.4*half_map)
-
+        enemy_attack = self.enemy_units.filter(lambda unit:unit.distance_to(self.start_location) < 0.4*half_map) + \
+                       self.enemy_structures.filter(lambda unit:unit.distance_to(self.start_location) < 0.4*half_map)
         rally_position = self.structures(sc2.UnitTypeId.PYLON).ready.closest_to(self.game_info.map_center).position.towards(
             self.game_info.map_center, 10)
         if len(enemy_attack) > 0:
             if attack_unit.weapon_cooldown != 0:
-                self.do(attack_unit.move(self.enemy_units.closest_to(attack_unit.position).position.towards(
-                    attack_unit.position,attack_unit.ground_range+1
-                )))
+                if self.enemy_units.exists:
+                    self.do(attack_unit.move(self.enemy_units.closest_to(attack_unit.position).position.towards(
+                        attack_unit.position,attack_unit.ground_range+1
+                    )))
+                else:
+                    self.do(attack_unit.move(self.enemy_structures.closest_to(attack_unit.position).position.towards(
+                        attack_unit.position, attack_unit.ground_range + 1
+                    )))
             else:
-                self.do(attack_unit.attack(self.enemy_units.closest_to(attack_unit.position)))
+                if self.enemy_units.exists:
+                    self.do(attack_unit.attack(self.enemy_units.closest_to(attack_unit.position)))
+                else:
+                    self.do(attack_unit.attack(self.enemy_structures.closest_to(attack_unit.position)))
         else:
-            if attack_unit.distance_to(rally_position) > 6:
+            if attack_unit.distance_to(rally_position) > 8:
                 self.do(attack_unit.move(rally_position))
 
-    async def attack_control(self, attack_unit, attack_bool):
-        if attack_bool == True:
+    async def attack_control(self, attack_unit, attack):
+        if attack == True:
             await self.macro_attack(attack_unit)
-        if attack_bool == False:
+        else:
             await self.macro_defend(attack_unit)
 
     async def has_ability(self, ability, unit):
@@ -95,5 +106,19 @@ class Bot_api(sc2.BotAI):
         import random
         output = random.randrange(min, max)
         return output
+
+    async def zealot_ratio(self):
+        race = self.enemy_race
+        if race == Race.Protoss:
+            return 6.0
+        elif race == Race.Terran:
+            return 1.2
+        elif race == Race.Zerg:
+            return 1.4
+        else:
+            return 2.0
+
+
+
 
 

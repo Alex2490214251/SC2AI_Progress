@@ -4,39 +4,46 @@ from sc2.player import Bot, Computer
 from Bot_api import Bot_api
 from sc2.constants import UnitTypeId, AbilityId, BuffId
 
+# TO DO
+# Fix sentry Forcefield Ability Use
+# Probe defence
+# Stalker strike air units first
+
 class Bot_Stardust(Bot_api):
     #Main System
     send1 = False
     send2 = False
     async def on_step(self,iteration):
-        await self.distribute_workers()
-        await self.train_probe()
-        await self.build_pylon()
-        await self.build_assimilator()
-        await self.build_nexus()
-        await self.build_gateway_cyberneticscore()
-        await self.build_twilightconcil()
-        await self.build_roboticsfacility_roboticsbay()
-        await self.build_forge()
+        if iteration % 2 == 1:
+            await self.distribute_workers()
+            await self.train_probe()
+            await self.build_pylon()
+            await self.build_assimilator()
+            await self.build_nexus()
+            await self.build_gateway_cyberneticscore()
+            await self.build_twilightconcil()
+            await self.build_roboticsfacility_roboticsbay()
+            await self.build_forge()
+            #await self.build_shieldbattery()
 
-        await self.train_stalker()
-        await self.train_zealot()
-        await self.train_sentry()
-        await self.train_immortal()
-        await self.train_colossus()
-        await self.train_observer()
+            await self.train_stalker()
+            await self.train_zealot()
+            await self.train_sentry()
+            await self.train_immortal()
+            await self.train_colossus()
+            await self.train_observer()
 
-        await self.operation_stalker()
-        await self.operation_zealot()
-        await self.operation_sentry()
-        await self.operation_immortal()
-        await self.operation_colossus()
-        await self.operation_cyberneticscore()
-        await self.operation_twilightconcil()
-        await self.operation_forge()
-        await self.operation_roboticsbay()
-        await self.operation_observer()
-        await self.operation_nexus()
+            await self.operation_zealot()
+            await self.operation_sentry()
+            await self.operation_stalker()
+            await self.operation_immortal()
+            await self.operation_colossus()
+            await self.operation_cyberneticscore()
+            await self.operation_twilightconcil()
+            await self.operation_forge()
+            await self.operation_roboticsbay()
+            await self.operation_observer()
+            await self.operation_nexus()
 
         await self.CONTROLL_ATTACK()
         await self.scout()
@@ -105,7 +112,7 @@ class Bot_Stardust(Bot_api):
     async def build_roboticsfacility_roboticsbay(self):
         if self.structures(sc2.UnitTypeId.TWILIGHTCOUNCIL).ready.exists and self.structures(sc2.UnitTypeId.PYLON).ready.exists:
             pylon = self.structures(sc2.UnitTypeId.PYLON).ready.random
-            if self.structures(sc2.UnitTypeId.ROBOTICSFACILITY).ready.amount > 2:
+            if self.structures(sc2.UnitTypeId.ROBOTICSFACILITY).amount > 2:
                 if not self.structures(sc2.UnitTypeId.ROBOTICSBAY):
                     if self.can_afford(sc2.UnitTypeId.ROBOTICSBAY) and not self.already_pending(sc2.UnitTypeId.ROBOTICSBAY):
                         await self.build(sc2.UnitTypeId.ROBOTICSBAY, near=pylon) #Build Roboticsbay
@@ -120,12 +127,22 @@ class Bot_Stardust(Bot_api):
                     if self.can_afford(UnitTypeId.FORGE) and not self.already_pending(UnitTypeId.FORGE):
                         await self.build(UnitTypeId.FORGE, near=pylon)
 
+    async def build_shieldbattery(self):
+        if self.structures(sc2.UnitTypeId.PYLON).ready.exists:
+            pylon = self.structures(UnitTypeId.PYLON).ready.closest_to(self.game_info.map_center)
+            if self.structures(sc2.UnitTypeId.SHIELDBATTERY).ready.amount < (self.supply_army//8) or \
+                    self.minerals >= 500:
+                if self.can_afford(UnitTypeId.SHIELDBATTERY) and not self.already_pending(UnitTypeId.SHIELDBATTERY):
+                    await self.build(UnitTypeId.SHIELDBATTERY, near=pylon)
+
+
+
     #Train Troops
     async def train_zealot(self):
         for gateway in self.structures(sc2.UnitTypeId.GATEWAY).ready.idle:
             if self.can_afford(sc2.UnitTypeId.ZEALOT) and self.supply_left > 1 and \
                     ((self.units(sc2.UnitTypeId.STALKER).amount) + 1) / (
-                    (self.units(sc2.UnitTypeId.ZEALOT).amount) + 1) >= 1.4 or \
+                    (self.units(sc2.UnitTypeId.ZEALOT).amount) + 1) >= await self.zealot_ratio() or \
                     self.structures(sc2.UnitTypeId.ASSIMILATOR).amount == 0 and \
                     warp == False:
                 await self.train(UnitTypeId.ZEALOT, gateway)
@@ -133,7 +150,7 @@ class Bot_Stardust(Bot_api):
             for pylon in self.structures(sc2.UnitTypeId.PYLON).ready:
                 for warpgate in self.structures(sc2.UnitTypeId.WARPGATE).ready.idle:
                     if self.supply_left > 1 and \
-                            ((self.units(sc2.UnitTypeId.STALKER).amount) + 1)/((self.units(sc2.UnitTypeId.ZEALOT).amount) + 1) >= 1.4 and \
+                            ((self.units(sc2.UnitTypeId.STALKER).amount) + 1)/((self.units(sc2.UnitTypeId.ZEALOT).amount) + 1) >= await self.zealot_ratio() and \
                             self.can_afford(UnitTypeId.ZEALOT) and \
                             await self.has_ability(AbilityId.WARPGATETRAIN_ZEALOT, warpgate):
                         await self.warp_in(UnitTypeId.ZEALOT, warpgate, pylon.position)
@@ -160,7 +177,7 @@ class Bot_Stardust(Bot_api):
         for gateway in self.structures(sc2.UnitTypeId.GATEWAY).ready.idle:
             if self.supply_left > 1 and \
                     self.structures(sc2.UnitTypeId.CYBERNETICSCORE).ready.exists and \
-                    self.units(UnitTypeId.SENTRY).ready.amount <= int((await self.troop_size())*0.02) and \
+                    self.units(UnitTypeId.SENTRY).ready.amount <= int((await self.troop_size())*0.02)-1 and \
                     warp == False:
                 await self.train(UnitTypeId.SENTRY, gateway)
         if self.structures(sc2.UnitTypeId.PYLON).ready.exists:
@@ -168,7 +185,7 @@ class Bot_Stardust(Bot_api):
                 for warpgate in self.structures(sc2.UnitTypeId.WARPGATE).ready.idle:
                     if self.supply_left > 1 and \
                             self.structures(sc2.UnitTypeId.CYBERNETICSCORE).ready.exists and \
-                            self.units(UnitTypeId.SENTRY).ready.amount <= int((await self.troop_size()) * 0.02) and \
+                            self.units(UnitTypeId.SENTRY).ready.amount <= int((await self.troop_size()) * 0.02)-1 and \
                             await self.has_ability(AbilityId.WARPGATETRAIN_SENTRY, warpgate):
                         await self.warp_in(UnitTypeId.SENTRY, warpgate, pylon.position)
 
@@ -184,8 +201,7 @@ class Bot_Stardust(Bot_api):
     async def train_observer(self):
         for roboticfacility in self.structures(sc2.UnitTypeId.ROBOTICSFACILITY).ready.idle:
             if self.supply_left > 0 and \
-                    self.units(UnitTypeId.OBSERVER).amount < 2 and \
-                    self.units(UnitTypeId.STALKER).amount > 10:
+                    self.units(UnitTypeId.OBSERVER).amount < 2:
                 await self.train(UnitTypeId.OBSERVER, roboticfacility)
     async def train_warpprism(self):
         for roboticsfacility in self.structures(sc2.UnitTypeId.ROBOTICSFACILITY).ready.idle:
@@ -195,30 +211,34 @@ class Bot_Stardust(Bot_api):
 
     #Troops Micro AI
     async def operation_zealot(self):
-        known_enemy_troops = self.enemy_units - self.enemy_structures
         for zealot in self.units(sc2.UnitTypeId.ZEALOT):
             await self.attack_control(zealot, attack)
+
     async def operation_stalker(self):
         known_enemy_troops = self.enemy_units - self.enemy_structures
         for stalker in self.units(sc2.UnitTypeId.STALKER):
+            enemy_in_range = await self.enemy_in_range(known_enemy_troops, stalker)
             await self.attack_control(stalker, attack)
             if await self.has_ability(AbilityId.EFFECT_BLINK_STALKER, stalker):
-                if stalker.shield_percentage <= 0.4:
-                    self.do(stalker(AbilityId.EFFECT_BLINK_STALKER, stalker.position.towards(self.start_location, 4)))
+                if stalker.shield_percentage <= 0.4 and len(enemy_in_range) != 0:
+                    self.do(stalker(AbilityId.EFFECT_BLINK_STALKER, self.enemy_units.closest_to(stalker.position).position.towards(
+                    stalker.position,14
+                )))
+
     async def operation_sentry(self):
-        known_enemy_troops = self.enemy_units - self.enemy_structures
+        half_map = self.start_location.position.distance_to(self.enemy_start_locations[0].position)
+        enemy_attack = self.enemy_units.filter(lambda unit: unit.distance_to(self.start_location) < 0.4 * half_map)
         for sentry in self.units(sc2.UnitTypeId.SENTRY):
             await self.attack_control(sentry, attack)
             if await self.has_ability(AbilityId.FORCEFIELD_FORCEFIELD, sentry):
-                if len(known_enemy_troops) > 0 and not await self.has_ability(AbilityId.FORCEFIELD_CANCEL, sentry):
-                    self.do(sentry(AbilityId.FORCEFIELD_FORCEFIELD, known_enemy_troops[await self.random(0,len(known_enemy_troops))].position.towards(self.start_location, 0.5)))
+                if len(enemy_attack) > 0 and not await self.has_ability(AbilityId.FORCEFIELD_CANCEL, sentry):
+                    self.do(sentry(AbilityId.FORCEFIELD_FORCEFIELD, self.enemy_units.closest_to(sentry).position.towards(self.start_location, -0.5)))
 
     async def operation_immortal(self):
-        known_enemy_troops = self.enemy_units - self.enemy_structures
         for immortal in self.units(sc2.UnitTypeId.IMMORTAL):
             await self.attack_control(immortal, attack)
+
     async def operation_colossus(self):
-        known_enemy_troops = self.enemy_units - self.enemy_structures
         for colossus in self.units(sc2.UnitTypeId.COLOSSUS):
             await self.attack_control(colossus, attack)
 
@@ -251,7 +271,7 @@ class Bot_Stardust(Bot_api):
             if await self.has_ability(AbilityId.RESEARCH_BLINK, twilightconcil):
                 if self.can_afford(AbilityId.RESEARCH_BLINK):
                     self.do(twilightconcil(sc2.AbilityId.RESEARCH_BLINK))
-            if await self.has_ability(AbilityId.RESEARCH_CHARGE, twilightconcil):
+            if await self.has_ability(AbilityId.RESEARCH_CHARGE, twilightconcil) and self.enemy_race != Race.Protoss:
                 if self.can_afford(AbilityId.RESEARCH_CHARGE):
                     self.do(twilightconcil(sc2.AbilityId.RESEARCH_CHARGE))
     async def operation_forge(self):
@@ -316,12 +336,10 @@ class Bot_Stardust(Bot_api):
 
     async def scout(self):
         import random
-
         units_to_ignore = [UnitTypeId.DRONE, UnitTypeId.SCV, UnitTypeId.PROBE, UnitTypeId.EGG, UnitTypeId.LARVA, UnitTypeId.OVERLORD, UnitTypeId.OVERSEER, UnitTypeId.OBSERVER]
         detect_units = [UnitTypeId.OBSERVER, UnitTypeId.PHOTONCANNON, UnitTypeId.OVERSEER, UnitTypeId.RAVEN,
                         UnitTypeId.MISSILETURRET, UnitTypeId.SPORECRAWLER, UnitTypeId.SPORECANNON]
-
-        if self.units(UnitTypeId.PROBE).ready.exists:
+        if self.units(UnitTypeId.PROBE).ready.amount > 22:
             scout_worker = None
             for worker in self.workers:
                 if self.has_order([AbilityId.PATROL], worker):
@@ -343,7 +361,7 @@ class Bot_Stardust(Bot_api):
                 await self.order(scout_worker, AbilityId.PATROL, random_exp_location)
                 return
 
-        if self.units(UnitTypeId.OBSERVER).ready.exists:
+        if self.units(UnitTypeId.OBSERVER).ready.amount > 1:
             scout = None
             for observer in self.units(UnitTypeId.OBSERVER):
                 if self.has_order([AbilityId.PATROL], observer):
@@ -371,7 +389,6 @@ class Bot_Stardust(Bot_api):
         immortal = self.units(UnitTypeId.IMMORTAL).ready.amount
         colossus = self.units(UnitTypeId.COLOSSUS).ready.amount
         data = '- '+str(zealot)+', '+str(stalker)+', '+str(sentry)+', '+str(immortal)+', '+str(colossus)
-        await self.chat_send('(probe)'+data)
 
     async def chat(self):
         if self.supply_army > 100 and self.send1 == False:
